@@ -21,9 +21,11 @@ go install github.com/g-crypt/g-crypt
 Here is an example of how to use the encryption and decryption functions provided by the g-crypt package:
 
 ```go
+package main
+
 import (
-    "fmt"
-    "github.com/g-crypt/g-crypt"
+	"fmt"
+	gcrypt "github.com/g-crypt/g-crypt"
 )
 
 func main() {
