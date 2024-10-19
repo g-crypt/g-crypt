@@ -22,7 +22,7 @@ func TestEncryptAES256(t *testing.T) {
     }
 
     for _, tt := range tests {
-        encrypted, err := EncryptAES256(tt.text, tt.password)
+		encrypted, err := EncryptAES256(tt.text, tt.password)
         if (err != nil) != tt.wantErr {
             t.Errorf("EncryptAES256() error = %v, wantErr %v", err, tt.wantErr)
             return
@@ -38,7 +38,7 @@ func TestDecryptAES256(t *testing.T) {
         text     string
         password string
         wantErr  bool
-    }{
+	}{
         {"Example text", "secret-password", false},
         {"Another example", "another-password", false},
         {"", "empty-text", false},
@@ -191,6 +191,28 @@ func TestEncryptAES256WithIVError(t *testing.T) {
     }
 }
 
+func TestDecryptAES256WithCipherError(t *testing.T) {
+    text := "Example text"
+    password := "secret-password"
+
+    encrypted, err := EncryptAES256(text, password)
+    if err != nil {
+        t.Errorf("Error encrypting: %v", err)
+    }
+
+    // Simular erro ao criar o cipher block
+    originalNewCipher := newCipher
+    defer func() { newCipher = originalNewCipher }()
+    newCipher = func(key []byte) (cipher.Block, error) {
+        return nil, errors.New("cipher error")
+    }
+
+    _, err = DecryptAES256(encrypted, password)
+    if err == nil || err.Error() != "cipher error" {
+        t.Error("Expected cipher error, but got none or different error")
+    }
+}
+
 func TestDecryptAES256WithInvalidBlockSize(t *testing.T) {
     text := "Example text"
     password := "secret-password"
@@ -234,7 +256,7 @@ func TestDecryptAES256WithInvalidPaddingValue(t *testing.T) {
     invalidEncrypted := base64.StdEncoding.EncodeToString(encryptedBytes)
 
     _, err = DecryptAES256(invalidEncrypted, password)
-    if err == nil {
-        t.Error("Expected error when decrypting with invalid padding value, but got none")
+    if err == nil || err.Error() != "invalid padding" {
+        t.Error("Expected error when decrypting with invalid padding value, but got none or different error")
     }
 }
