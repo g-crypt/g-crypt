@@ -7,26 +7,34 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"io"
 )
 
+var (
+    newCipher = aes.NewCipher
+    readFull  = io.ReadFull
+)
+
 func genKey(password string) []byte {
-	hash := sha256.Sum256([]byte(password))
-	return hash[:]
+    hash := sha256.Sum256([]byte(password))
+    return hash[:]
 }
 
 func EncryptAES256(text, password string) (string, error) {
+    if password == "" {
+        return "", errors.New("password cannot be empty")
+    }
+
     key := genKey(password)
 
-    block, err := aes.NewCipher(key)
+    block, err := newCipher(key)
     if err != nil {
         return "", err
     }
 
     iv := make([]byte, aes.BlockSize)
-    _, err = io.ReadFull(rand.Reader, iv)
+    _, err = readFull(rand.Reader, iv)
     if err != nil {
         return "", err
     }
@@ -41,45 +49,52 @@ func EncryptAES256(text, password string) (string, error) {
 
     result := append(iv, ciphertext...)
 
-    hexBytes := []byte(hex.EncodeToString(result))
-    return base64.StdEncoding.EncodeToString(hexBytes), nil
+    return base64.StdEncoding.EncodeToString(result), nil
 }
 
-
 func DecryptAES256(encryptedText, password string) ([]byte, error) {
+    if password == "" {
+        return nil, errors.New("password cannot be empty")
+    }
+
     key := genKey(password)
 
-    hexBytes, err := base64.StdEncoding.DecodeString(encryptedText)
-    if err != nil {
-		return nil, err
-    }
-
-    cipherBytes, err := hex.DecodeString(string(hexBytes))
+    cipherText, err := base64.StdEncoding.DecodeString(encryptedText)
     if err != nil {
         return nil, err
     }
 
-    if len(cipherBytes) < aes.BlockSize {
-        return nil, errors.New("ciphertext too short")
-    }
-    iv := cipherBytes[:aes.BlockSize]
-    cipherBytes = cipherBytes[aes.BlockSize:]
-
-    block, err := aes.NewCipher(key)
+    block, err := newCipher(key)
     if err != nil {
         return nil, err
+    }
+
+    if len(cipherText) < aes.BlockSize {
+        return nil, errors.New("cipherText too short")
+    }
+
+    iv := cipherText[:aes.BlockSize]
+    cipherText = cipherText[aes.BlockSize:]
+
+    if len(cipherText)%aes.BlockSize != 0 {
+        return nil, errors.New("cipherText is not a multiple of the block size")
     }
 
     mode := cipher.NewCBCDecrypter(block, iv)
 
-    decrypted := make([]byte, len(cipherBytes))
-    mode.CryptBlocks(decrypted, cipherBytes)
+    decrypted := make([]byte, len(cipherText))
+    mode.CryptBlocks(decrypted, cipherText)
 
     padding := int(decrypted[len(decrypted)-1])
-    if padding > aes.BlockSize || padding <= 0 {
+    if padding > aes.BlockSize || padding == 0 {
         return nil, errors.New("invalid padding")
     }
-    decrypted = decrypted[:len(decrypted)-padding]
 
-    return decrypted, nil
+    for i := 0; i < padding; i++ {
+        if decrypted[len(decrypted)-1-i] != byte(padding) {
+            return nil, errors.New("invalid padding")
+        }
+    }
+
+    return decrypted[:len(decrypted)-padding], nil
 }
