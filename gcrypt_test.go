@@ -1,6 +1,7 @@
 package gcrypt
 
 import (
+	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
 	"errors"
@@ -187,5 +188,53 @@ func TestEncryptAES256WithIVError(t *testing.T) {
     _, err := EncryptAES256("text", "password")
     if err == nil || err.Error() != "IV error" {
         t.Error("Expected IV error, but got none or different error")
+    }
+}
+
+func TestDecryptAES256WithInvalidBlockSize(t *testing.T) {
+    text := "Example text"
+    password := "secret-password"
+
+    encrypted, err := EncryptAES256(text, password)
+    if err != nil {
+        t.Errorf("Error encrypting: %v", err)
+    }
+
+    // Corromper o texto cifrado para ter um tamanho de bloco inválido
+    encryptedBytes, err := base64.StdEncoding.DecodeString(encrypted)
+    if err != nil {
+        t.Errorf("Error decoding base64: %v", err)
+    }
+    encryptedBytes = append(encryptedBytes, 0) // Adicionar um byte extra para tornar o tamanho inválido
+
+    invalidEncrypted := base64.StdEncoding.EncodeToString(encryptedBytes)
+
+    _, err = DecryptAES256(invalidEncrypted, password)
+    if err == nil {
+        t.Error("Expected error when decrypting with invalid block size, but got none")
+    }
+}
+
+func TestDecryptAES256WithInvalidPaddingValue(t *testing.T) {
+    text := "Example text"
+    password := "secret-password"
+
+    encrypted, err := EncryptAES256(text, password)
+    if err != nil {
+        t.Errorf("Error encrypting: %v", err)
+    }
+
+    // Corromper o texto cifrado para ter um valor de padding inválido
+    encryptedBytes, err := base64.StdEncoding.DecodeString(encrypted)
+    if err != nil {
+        t.Errorf("Error decoding base64: %v", err)
+    }
+    encryptedBytes[len(encryptedBytes)-1] = byte(aes.BlockSize + 1) // Valor de padding inválido
+
+    invalidEncrypted := base64.StdEncoding.EncodeToString(encryptedBytes)
+
+    _, err = DecryptAES256(invalidEncrypted, password)
+    if err == nil {
+        t.Error("Expected error when decrypting with invalid padding value, but got none")
     }
 }
