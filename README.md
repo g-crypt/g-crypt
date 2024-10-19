@@ -2,6 +2,8 @@
 
 Simple encryption library in Go using AES-256.
 
+[![codecov](https://codecov.io/github/g-crypt/g-crypt/branch/master/graph/badge.svg?token=DZT5RJ1S8U)](https://codecov.io/github/g-crypt/g-crypt)
+
 ## Installation
 
 To install the package, run the following command:
